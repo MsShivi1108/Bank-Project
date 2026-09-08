@@ -1,5 +1,7 @@
 const userModel = require("../models/user.model.js")
 const jwt = require("jsonwebtoken")
+const emailService = require("../services/email.service.js")  //for nodemailer
+
 // const bcrypt = require('bcryptjs')
 
 /**
@@ -13,7 +15,7 @@ async function userReg(req, res) {
 
     const isExists = await userModel.findOne({
         email: email
-    }).select(password)
+    })
 
     if (isExists) {
         return res.status(422).json({
@@ -35,11 +37,16 @@ async function userReg(req, res) {
 
         res.cookie("token", token)
 
+        // Send registration email in background (don't await to avoid delaying response)
+        emailService.sendRegistrationEmail(user.email, user.name).catch(err => 
+            console.error('Error sending registration email:', err)
+        );
+
         return res.status(201).json({
             user: {
                 name,
                 email,
-                _id:user._id
+                _id: user._id
             },
             token
         })
@@ -48,13 +55,14 @@ async function userReg(req, res) {
         console.log(error);
         return res.status(500).json({ message: "internal server error {err in auth.controller file inside userReg fun", error: error.message })
     }
+
 }
 
 
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
-        
+
         // Validate inputs
         if (!email || !password) {
             return res.status(400).json({ message: "Email and password are required" });
@@ -72,23 +80,6 @@ const login = async (req, res) => {
             return res.status(401).json("Invalid email or password")
         }
 
-        // let token;
-        // try {
-        //     token = generateToken(existUser._id);
-        // } catch (error) {
-        //     console.log(error)
-        // }
-
-        // res.cookie("token", token)
-        // return res.status(200).json({
-        //     user: {
-        //         fullName: existUser.fullName,
-        //         email: existUser.email,
-        //         username: existUser.username,
-
-        //     }
-        // })
-
         const token = jwt.sign({ userId: existUser._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
 
         //install cookieparser
@@ -98,8 +89,8 @@ const login = async (req, res) => {
         res.status(200).json({
             user: {
                 name: existUser.name,
-                email:existUser.email,
-                _id:existUser._id
+                email: existUser.email,
+                _id: existUser._id
             },
             token
         })
