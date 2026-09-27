@@ -14,17 +14,17 @@ async function createAccountController(req, res) {
 
 }
 
-// async function getUserAccountsController(req, res) {
-//     try {
-//         const user = req.user;
-//         const accounts = await accountModel.find({ user: user._id });
-//         res.status(200).json({
-//             accounts
-//         })
-//     } catch (error) {
-//         res.status(500).json({ message: "Error fetching accounts", error: error.message })
-//     }
-// }
+async function getUserAccountsController(req, res) {
+    try {
+        const user = req.user;
+        const accounts = await accountModel.find({ user: user._id });
+        res.status(200).json({
+            accounts
+        })
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching accounts", error: error.message })
+    }
+}
 
 // async function getAccountBalanceController(req, res) {
 //     try {
@@ -43,4 +43,4 @@ async function createAccountController(req, res) {
 //     }
 // }
 
-module.exports = { createAccountController}
+module.exports = { createAccountController,getUserAccountsController}

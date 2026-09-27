@@ -60,7 +60,6 @@ async function createTransaction(req, res) {
                 message: "Transaction already processed",
                 transaction: isTransactionAlreadyExists
             })
-
         }
 
         if (isTransactionAlreadyExists.status === "PENDING") {
@@ -105,8 +104,6 @@ async function createTransaction(req, res) {
 
     let transaction;
     try {
-
-
         /**
          * 5. Create transaction (PENDING)
          */
@@ -196,7 +193,6 @@ async function createInitialFundsTransaction(req, res) {
         })
     }
 
-
     const session = await mongoose.startSession()
     session.startTransaction()
 
@@ -207,6 +203,8 @@ async function createInitialFundsTransaction(req, res) {
         idempotencyKey,
         status: "PENDING"
     })
+
+    // await transaction.save()   // due to err suggestion from copilot
 
     const debitLedgerEntry = await ledgerModel.create([ {
         account: fromUserAccount._id,
@@ -233,9 +231,9 @@ async function createInitialFundsTransaction(req, res) {
         transaction: transaction
     })
 
-
 }
 
 module.exports = {
-    createTransaction
+    createTransaction,
+    createInitialFundsTransaction
 }

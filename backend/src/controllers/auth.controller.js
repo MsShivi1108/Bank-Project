@@ -58,7 +58,6 @@ async function userReg(req, res) {
 
 }
 
-
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -74,7 +73,7 @@ const login = async (req, res) => {
             return res.status(401).json("Invalid email or password")
         }
 
-        let match = await existUser.isPasswordCorrect(String(password))
+        let match = await existUser.comparePassword(String(password))
         // let match = await bcrypt.compare(password, existUser.password)
         if (!match) {
             return res.status(401).json("Invalid email or password")
