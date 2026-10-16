@@ -1,5 +1,7 @@
 .env
-*node_modules
+.env.*
+!.env.example
+node_modules/
 
 # firts register a user and system user account and then login into system user and in then check
 #  for /accounts api. And then check on /intial-funds api with the required parameters from the body of 
@@ -24,7 +26,6 @@
 # Use Shivi’s token to call GET http://localhost:2000/api/accounts. Find Shivi’s account _id in the response. Use the account ID—not Shivi’s user ID.
 
 # With Shivi’s token, call:
-
 
 
 

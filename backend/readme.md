@@ -59,14 +59,18 @@ npm install
 
 ### 2. Configure environment variables
 
-Create a `.env` file in the `backend` directory:
+Copy `.env.example` to `.env` in the `backend` directory, then replace the sample values:
 
 ```env
 MONGO_URI=mongodb://127.0.0.1:27017/bank-transaction
 JWT_SECRET=replace-with-a-long-random-secret
+EMAIL_USER=your-email@gmail.com
+CLIENT_ID=your-google-oauth-client-id
+CLIENT_SECRET=your-google-oauth-client-secret
+REFRESH_TOKEN=your-google-oauth-refresh-token
 ```
 
-Use your actual MongoDB connection string for a hosted database. Keep `.env` private and never commit database credentials or JWT secrets.
+Use your actual MongoDB connection string for a hosted database. The email settings are Gmail OAuth2 credentials used by the email service. Keep `.env` private and never commit database credentials, OAuth credentials, or JWT secrets. The `.env.example` file contains placeholders only and is safe to commit.
 
 ### 3. Start the server
 
