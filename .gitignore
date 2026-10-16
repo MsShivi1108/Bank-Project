@@ -1,2 +1,30 @@
 .env
 *node_modules
+
+# firts register a user and system user account and then login into system user and in then check
+#  for /accounts api. And then check on /intial-funds api with the required parameters from the body of 
+#  render testing. 
+
+# before checking the /initial-funds api, make sure to check the /accounts and system user must login and get the account id of the system user and then use user's object_id from the accounts and then check for /initial-funds api.
+
+#  {
+#   "toAccount": "SHIVI_ACCOUNT_ID",
+#   "amount": 12345,
+#   "idempotencyKey": "initial-funds-shivi-12345-unique-key"
+# }
+
+# to create transaction follow the below steps:
+# user & system user reg -> login system user -> toAccount : Shivi_account_id not system user id -> post /initial-funds api with the required parameters from the body of render testing.
+
+
+# To check Shivi’s balance:
+
+# Log in as Shivi: POST http://localhost:2000/api/auth/login
+
+# Use Shivi’s token to call GET http://localhost:2000/api/accounts. Find Shivi’s account _id in the response. Use the account ID—not Shivi’s user ID.
+
+# With Shivi’s token, call:
+
+
+
+

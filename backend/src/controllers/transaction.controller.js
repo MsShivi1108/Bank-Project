@@ -110,31 +110,27 @@ async function createTransaction(req, res) {
         const session = await mongoose.startSession()
         session.startTransaction()
 
-        transaction = (await transactionModel.create([ {
+        transaction = (await transactionModel.create([{
             fromAccount,
             toAccount,
             amount,
             idempotencyKey,
             status: "PENDING"
-        } ], { session }))[ 0 ]
+        }], { session }))[0]
 
-        const debitLedgerEntry = await ledgerModel.create([ {
+        const debitLedgerEntry = await ledgerModel.create([{
             account: fromAccount,
             amount: amount,
             transaction: transaction._id,
             type: "DEBIT"
-        } ], { session })
+        }], { session })
 
-        await (() => {
-            return new Promise((resolve) => setTimeout(resolve, 15 * 1000));
-        })()
-
-        const creditLedgerEntry = await ledgerModel.create([ {
+        const creditLedgerEntry = await ledgerModel.create([{
             account: toAccount,
             amount: amount,
             transaction: transaction._id,
             type: "CREDIT"
-        } ], { session })
+        }], { session })
 
         await transactionModel.findOneAndUpdate(
             { _id: transaction._id },
@@ -173,16 +169,6 @@ async function createInitialFundsTransaction(req, res) {
         })
     }
 
-    const toUserAccount = await accountModel.findOne({
-        _id: toAccount,
-    })
-
-    if (!toUserAccount) {
-        return res.status(400).json({
-            message: "Invalid toAccount"
-        })
-    }
-
     const fromUserAccount = await accountModel.findOne({
         user: req.user._id
     })
@@ -193,38 +179,124 @@ async function createInitialFundsTransaction(req, res) {
         })
     }
 
-    const session = await mongoose.startSession()
-    session.startTransaction()
+    const existingTransaction = await transactionModel.findOne({ idempotencyKey })
 
-    const transaction = new transactionModel({
-        fromAccount: fromUserAccount._id,
-        toAccount,
-        amount,
-        idempotencyKey,
-        status: "PENDING"
+    if (existingTransaction) {
+        const isSameRequest =
+            String(existingTransaction.fromAccount) === String(fromUserAccount._id) &&
+            String(existingTransaction.toAccount) === String(toAccount) &&
+            Number(existingTransaction.amount) === Number(amount)
+
+        if (!isSameRequest) {
+            return res.status(409).json({
+                message: "Idempotency key has already been used for a different transaction"
+            })
+        }
+
+        if (existingTransaction.status === "COMPLETED") {
+            return res.status(200).json({
+                message: "Transaction already processed",
+                transaction: existingTransaction
+            })
+        }
+
+        if (existingTransaction.status === "PENDING") {
+            return res.status(200).json({
+                message: "Transaction is still processing",
+                transaction: existingTransaction
+            })
+        }
+
+        return res.status(409).json({
+            message: `Transaction cannot be retried because its status is ${existingTransaction.status}`,
+            transaction: existingTransaction
+        })
+    }
+
+    const toUserAccount = await accountModel.findOne({
+        _id: toAccount,
     })
 
-    // await transaction.save()   // due to err suggestion from copilot
+    if (!toUserAccount) {
+        return res.status(400).json({
+            message: "Invalid toAccount"
+        })
+    }
 
-    const debitLedgerEntry = await ledgerModel.create([ {
-        account: fromUserAccount._id,
-        amount: amount,
-        transaction: transaction._id,
-        type: "DEBIT"
-    } ], { session })
+    let session
+    let transaction
 
-    const creditLedgerEntry = await ledgerModel.create([ {
-        account: toAccount,
-        amount: amount,
-        transaction: transaction._id,
-        type: "CREDIT"
-    } ], { session })
+    try {
+        session = await mongoose.startSession()
+        session.startTransaction()
 
-    transaction.status = "COMPLETED"
-    await transaction.save({ session })
+        transaction = new transactionModel({
+            fromAccount: fromUserAccount._id,
+            toAccount,
+            amount,
+            idempotencyKey,
+            status: "PENDING"
+        })
+        await transaction.save({ session })
 
-    await session.commitTransaction()
-    session.endSession()
+        await ledgerModel.create([{
+            account: fromUserAccount._id,
+            amount,
+            transaction: transaction._id,
+            type: "DEBIT"
+        }], { session })
+
+        await ledgerModel.create([{
+            account: toAccount,
+            amount,
+            transaction: transaction._id,
+            type: "CREDIT"
+        }], { session })
+
+        transaction.status = "COMPLETED"
+        await transaction.save({ session })
+
+        await session.commitTransaction()
+    } catch (error) {
+        if (session && session.inTransaction()) {
+            await session.abortTransaction()
+        }
+
+        if (error.code === 11000) {
+            const duplicateTransaction = await transactionModel.findOne({ idempotencyKey })
+            if (duplicateTransaction) {
+                if (
+                    String(duplicateTransaction.fromAccount) !== String(fromUserAccount._id) ||
+                    String(duplicateTransaction.toAccount) !== String(toAccount) ||
+                    Number(duplicateTransaction.amount) !== Number(amount)
+                ) {
+                    return res.status(409).json({
+                        message: "Idempotency key has already been used for a different transaction"
+                    })
+                }
+
+                if (duplicateTransaction.status !== "COMPLETED" && duplicateTransaction.status !== "PENDING") {
+                    return res.status(409).json({
+                        message: `Transaction cannot be retried because its status is ${duplicateTransaction.status}`,
+                        transaction: duplicateTransaction
+                    })
+                }
+
+                return res.status(200).json({
+                    message: duplicateTransaction.status === "COMPLETED"
+                        ? "Transaction already processed"
+                        : "Transaction is still processing",
+                    transaction: duplicateTransaction
+                })
+            }
+        }
+
+        throw error
+    } finally {
+        if (session) {
+            await session.endSession()
+        }
+    }
 
     return res.status(201).json({
         message: "Initial funds transaction completed successfully",
